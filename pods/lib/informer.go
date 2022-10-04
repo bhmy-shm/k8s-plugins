@@ -58,7 +58,7 @@ var cacheCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Println("从缓存取数据成功")
+		fmt.Println("从缓存取数据")
 		table := tablewriter.NewWriter(os.Stdout)
 
 		//设置头

@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tidwall/gjson"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/json"
 	"log"
@@ -16,8 +17,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-//实现按照名称筛选pod Name
-
+// FilterListByJSON 实现按照名称筛选pod Name
 func FilterListByJSON(list *v1.PodList) {
 
 	jsonStr, _ := json.Marshal(list)
@@ -64,6 +64,7 @@ func PodsHeader() []string {
 // EventsHeader 初始化事件头
 var eventHeaders = []string{"事件类型", "REASON", "所属对象", "消息"}
 
+// EventsBody 遍历出事件的消息体
 func printEvent(events []*v1.Event) {
 	table := tablewriter.NewWriter(os.Stdout)
 	//设置头
@@ -87,6 +88,10 @@ func printEvent(events []*v1.Event) {
 	table.SetNoWhiteSpace(true)
 	table.Render()
 }
+
+// ------------------------------- 获取k8s 资源 -----------------------------------
+
+const DefaultNameSpace = "default"
 
 // 获取pod详情
 func getPodDetail(args []string) {
@@ -114,14 +119,8 @@ func getPodDetail(args []string) {
 
 // 获取pod详情以yaml的方式输出
 func getPodDetailByJson(podName, path string, cmd *cobra.Command) {
-	ns, err := cmd.Flags().GetString("namespace")
-	if err != nil {
-		log.Println("error ns param")
-		return
-	}
-	if ns == "" {
-		ns = "default"
-	}
+	//获取当前命令行输入的命名空间
+	ns := getNameSpace(cmd)
 
 	//查询具体的某一个pod
 	pod, err := fact.Core().V1().Pods().Lister().
@@ -188,4 +187,89 @@ func getPodDetailByJson(podName, path string, cmd *cobra.Command) {
 	}
 	b, _ := yaml.Marshal(tempMap)
 	fmt.Println(string(b))
+}
+
+// 删除pod
+func delPod(args []string, cmd *cobra.Command) {
+	if len(args) == 0 {
+		log.Println("podName is required")
+		return
+	}
+
+	//所有的命名空间均来自于 cobra命令行传入
+	ns := getNameSpace(cmd)
+	err := Client.CoreV1().Pods(ns).Delete(context.Background(), args[0], metav1.DeleteOptions{})
+	if err != nil {
+		log.Println("delete pod error:", err.Error())
+		return
+	}
+	log.Println("删除POD:", args[0], "成功")
+}
+
+// 设置namespace
+func setNameSpace(args []string, cmd *cobra.Command) {
+	if len(args) == 0 {
+		log.Println("namespace name is required")
+		return
+	}
+	//将当前命令行中的namespace 参数进行替换
+	err := cmd.Flags().Set("namespace", args[0])
+	if err != nil {
+		log.Println("设置namespace失败:", err.Error())
+		return
+	}
+	fmt.Println("设置namespace成功")
+}
+
+// 查看namespace
+func showNameSpace(cmd *cobra.Command) {
+	ns := getNameSpace(cmd)
+	fmt.Println("您当前所处的namespace是：", ns)
+}
+
+// 获取当前命令行输入的命名空间
+func getNameSpace(cmd *cobra.Command) string {
+	//从传入的命令中获取
+	ns, err := cmd.Flags().GetString("namespace")
+	if err != nil {
+		log.Println("error ns param")
+		return DefaultNameSpace
+	}
+	if ns == "" {
+		ns = DefaultNameSpace
+	}
+	return ns
+}
+
+// 获取pod的指标列表
+func getPodMetrics(ns string) {
+
+	mlist, err := MetricClient.MetricsV1beta1().PodMetricses(ns).
+		List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		fmt.Println("pod metrics failed", err)
+		return
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"名称", "cpu/内存"})
+
+	data := [][]string{}
+	for _, p := range mlist.Items {
+		for _, c := range p.Containers {
+			podRow := []string{}
+			if c.Name == "POD" {
+				continue
+			}
+			mem := c.Usage.Memory().Value() / 1024 / 1024
+			podRow = append(podRow, p.Name,
+				fmt.Sprintf("%s(%sm/%dM)", c.Name, c.Usage.Cpu().String(), mem))
+			data = append(data, podRow)
+		}
+
+	}
+	table.AppendBulk(data)
+	table.SetRowLine(true)
+	table.SetAutoMergeCells(true)
+	table.Render()
 }

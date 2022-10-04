@@ -10,7 +10,7 @@ import (
 )
 
 func ResetSTTY() {
-	cc := exec.Command("stty", "echo")
+	cc := exec.Command("stty", "-F", "/dev/tty", "echo")
 	cc.Stdout = os.Stdout
 	cc.Stderr = os.Stderr
 	if err := cc.Run(); err != nil {

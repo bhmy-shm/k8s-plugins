@@ -4,14 +4,19 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/metrics/pkg/client/clientset/versioned"
 	"log"
 )
 
-var CfgFlags *genericclioptions.ConfigFlags
+var (
+	CfgFlags     *genericclioptions.ConfigFlags
+	Client       *kubernetes.Clientset
+	RestConfig   *rest.Config
+	MetricClient *versioned.Clientset
+)
 
-var Client = initClient()
-
-func initClient() *kubernetes.Clientset {
+func InitClient() {
 
 	CfgFlags = genericclioptions.NewConfigFlags(true)
 	config, err := CfgFlags.ToRawKubeConfigLoader().ClientConfig()
@@ -22,7 +27,11 @@ func initClient() *kubernetes.Clientset {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	return client
+
+	// 初始化全局变量
+	Client = client
+	RestConfig = config
+	MetricClient = versioned.NewForConfigOrDie(config)
 }
 
 func MergeFlags(cmds ...*cobra.Command) {

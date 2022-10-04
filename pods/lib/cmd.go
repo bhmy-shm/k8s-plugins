@@ -18,6 +18,9 @@ func RunCmd() {
 		SilenceUsage: true,
 	}
 
+	//初始化k8s
+	InitClient()
+
 	//合并所有cmd
 	MergeFlags(cmd, ListCmd, promptCmd)
 
