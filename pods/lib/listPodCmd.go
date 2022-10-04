@@ -6,26 +6,21 @@ import (
 	"github.com/spf13/cobra"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
+	"plugins/cache"
 	"plugins/util"
 )
 
-//ListCmd 交互
+// ListCmd 交互
 var ListCmd = &cobra.Command{
 	Use:          "list",
 	Short:        "list pods",
 	Example:      "kubectl pods list [flags]",
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ns, err := cmd.Flags().GetString("namespace")
-		if err != nil {
-			return err
-		}
-		if ns == "" {
-			ns = "default"
-		}
 
 		//执行针对pods的查询
-		list, err := Client.CoreV1().Pods(ns).List(
+		ns := util.GetNameSpace(cmd)
+		list, err := cache.Client.CoreV1().Pods(ns).List(
 			context.Background(), v1.ListOptions{
 				LabelSelector: Labels,
 				FieldSelector: Fields,
@@ -54,21 +49,8 @@ var ListCmd = &cobra.Command{
 		}
 
 		//设置表格参数
-		table.SetAutoWrapText(false)
-		table.SetAutoFormatHeaders(true)
-		table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-		table.SetAlignment(tablewriter.ALIGN_LEFT)
-		table.SetCenterSeparator("")
-		table.SetColumnSeparator("")
-		table.SetRowSeparator("")
-		table.SetHeaderLine(false)
-		table.SetBorder(false)
-		table.SetTablePadding("\t") // pad with tabs
-		table.SetNoWhiteSpace(true)
-
-		//执行表格
+		util.SetTable(table)
 		table.Render()
-
 		return nil
 	},
 }

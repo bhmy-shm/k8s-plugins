@@ -3,12 +3,19 @@ package lib
 import (
 	"github.com/spf13/cobra"
 	"log"
+	"plugins/cache"
 )
 
 var ShowLabels bool
 var Labels string
 var Fields string
 var SearchPodName string
+
+func MergeFlags(cmds ...*cobra.Command) {
+	for _, cmd := range cmds {
+		cache.CfgFlags.AddFlags(cmd.Flags())
+	}
+}
 
 func RunCmd() {
 	cmd := &cobra.Command{
@@ -19,7 +26,7 @@ func RunCmd() {
 	}
 
 	//初始化k8s
-	InitClient()
+	cache.InitClient()
 
 	//合并所有cmd
 	MergeFlags(cmd, ListCmd, promptCmd)

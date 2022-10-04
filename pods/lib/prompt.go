@@ -5,11 +5,13 @@ import (
 	"github.com/c-bata/go-prompt"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/labels"
-	"log"
 	"os"
+	"plugins/cache"
 	"plugins/util"
 	"strings"
 )
+
+//程序交互式界面，进入方式 kubectl pods prompt
 
 var MyConsoleWrite = prompt.NewStdoutWriter()
 
@@ -30,23 +32,20 @@ func executorCmd(cmd *cobra.Command) func(in string) {
 		}
 		switch blocks[0] {
 		case "top":
-			getPodMetrics(getNameSpace(cmd))
+			getPodMetrics(util.GetNameSpace(cmd))
 		case "exit":
 			fmt.Println("Bye!")
 			util.ResetSTTY()
 			os.Exit(0)
 		case "list":
-			err := cacheCmd.RunE(cmd, args)
-			if err != nil {
-				log.Fatalln(err)
-			}
+			getPodDetail(cmd)
 		case "ns":
-			showNameSpace(cmd)
+			util.ShowNameSpace(cmd)
 		case "get":
 			clearConsole()
 			runTea(args, cmd)
 		case "use":
-			setNameSpace(args, cmd)
+			util.SetNameSpace(args, cmd)
 		case "del":
 			delPod(args, cmd)
 		case "exec":
@@ -72,7 +71,7 @@ var suggestions = []prompt.Suggest{
 }
 
 func getPodsList() (ret []prompt.Suggest) {
-	pods, err := fact.Core().V1().Pods().Lister().Pods("default").List(labels.Everything())
+	pods, err := cache.Fact.Core().V1().Pods().Lister().Pods("default").List(labels.Everything())
 	if err != nil {
 		return
 	}
@@ -104,7 +103,7 @@ var promptCmd = &cobra.Command{
 	Example:      "kubectl pods prompt",
 	SilenceUsage: true,
 	RunE: func(c *cobra.Command, args []string) error {
-		InitCache() //初始化缓存，在进入交互之后立即初始化
+		cache.InitCache() //初始化缓存，在进入交互之后立即初始化
 		p := prompt.New(
 			executorCmd(c),
 			completer,

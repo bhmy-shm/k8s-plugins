@@ -12,7 +12,11 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	"log"
 	"os"
+	"plugins/cache"
+	"plugins/util"
 )
+
+// 远程pod shell 交互
 
 func execPod(ns, pod, container string) remotecommand.Executor {
 	option := &v1.PodExecOptions{
@@ -24,7 +28,7 @@ func execPod(ns, pod, container string) remotecommand.Executor {
 		TTY:       true,
 	}
 
-	req := Client.CoreV1().RESTClient().Post().Resource("pods").
+	req := cache.Client.CoreV1().RESTClient().Post().Resource("pods").
 		Namespace(ns).
 		Name(pod).
 		SubResource("exec").
@@ -32,7 +36,7 @@ func execPod(ns, pod, container string) remotecommand.Executor {
 		VersionedParams(
 			option, scheme.ParameterCodec)
 
-	exec, err := remotecommand.NewSPDYExecutor(RestConfig, "POST", req.URL())
+	exec, err := remotecommand.NewSPDYExecutor(cache.RestConfig, "POST", req.URL())
 	if err != nil {
 		panic(err)
 	}
@@ -49,10 +53,10 @@ type execModel struct {
 
 func (this *execModel) Init() tea.Cmd {
 	//根据podName 取出 container 列表
-	this.ns = getNameSpace(this.cmd)
+	this.ns = util.GetNameSpace(this.cmd)
 
 	//根据传参获取指定的pod
-	pod, err := Client.CoreV1().Pods(this.ns).Get(context.Background(),
+	pod, err := cache.Client.CoreV1().Pods(this.ns).Get(context.Background(),
 		this.podName, metav1.GetOptions{})
 	if err != nil {
 		return tea.Quit
